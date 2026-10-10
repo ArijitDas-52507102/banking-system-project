@@ -1,0 +1,12 @@
+1 Sonali_Bank KUET_Main_Gate
+1 Sonali_Bank KUET_Auditorium_Loop
+1 Sonali_Bank BUET_Bakshibazar_Gate
+2 Dutch_Bangla KUET_Teligati_Chowrasta
+2 Dutch_Bangla BUET_Cafeteria_Booth
+2 Dutch_Bangla RUET_Kazla_Gate
+3 Rupali_Bank CUET_Main_Campus
+3 Rupali_Bank CUET_Chittagong_Highway
+4 Agrani_Bank RUET_Admin_Building
+4 Agrani_Bank BUET_Palashi_Intersection
+160 telighatibank boyra_bazar,khulna
+160 telighatibank moylapotha,khulna

@@ -1,0 +1,2 @@
+150 dhakabank 1 1000.00 0 1
+160 telighatibank 1 2000.00 2 1
