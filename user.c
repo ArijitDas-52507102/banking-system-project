@@ -3,17 +3,18 @@
 #include <string.h>
 #include <math.h>
 #include "global.h"
+#include <time.h>
 
 void userPortalGateway(void) {
     int choice;
     while (1) {
-        printf("\n-----------------------------------------------------\n");
+        printf("\n \n");
         printf("  RETAIL BANKING OPERATIONS GATEWAY CLIENT PORTAL  \n");
-        printf("-----------------------------------------------------\n");
+        printf("\n");
         printf("1. Create New Consumer Bank Account\n");
         printf("2. Log In to Account Portal\n");
         printf("3. Return to Main Dashboard Network Router\n");
-        printf("-----------------------------------------------------\n");
+        printf("\n");
         printf("Enter Option: ");
         scanf("%d", &choice);
         clearBuffer();
@@ -27,81 +28,177 @@ void userPortalGateway(void) {
     }
 }
 
+
+int accountNumberExists(const char *accountNumber)
+{
+    FILE *f = fopen(USERS_TXT, "r");
+    if (f == NULL)
+        return 0;
+
+    char existing[MAX_STR];
+    int ch;
+
+    while (fscanf(f, "%49s", existing) == 1) {
+        if (strcmp(existing, accountNumber) == 0) {
+            fclose(f);
+            return 1;
+        }
+
+        while ((ch = fgetc(f)) != '\n' && ch != EOF) {
+        }
+    }
+
+    fclose(f);
+    return 0;
+}
+
+void generateAccountNumber(char *accountNumber)
+{
+    static int seeded = 0;
+
+    if (!seeded) {
+        srand((unsigned int)time(NULL));
+        seeded = 1;
+    }
+
+    do {
+        unsigned int number =
+            1000000000U + (unsigned int)(rand() % 900000000);
+
+        snprintf(accountNumber, MAX_STR, "%010u", number);
+
+    } while (accountNumberExists(accountNumber));
+}
+
+
 void userRegistrationForm(void) {
     FILE *bf = fopen(BANKS_TXT, "r");
-    if (!bf) { printf("Error: Interbank network file down.\n"); return; }
+
+    if (!bf) {
+        printf("Error: Cannot open bank database.\n");
+        return;
+    }
 
     struct SubBank b;
     int availableBanks = 0;
-    printf("\nAuthorized Institutional Gateways:\n");
-    while (fscanf(bf, "%*d %s %d %*f %*d %*d\n", b.bankName, &b.isApproved) == 2) {
+
+    printf("\nAvailable Approved Banks:\n");
+
+    while (fscanf(bf, "%*d %49s %d %*f %*d %*d",
+                  b.bankName, &b.isApproved) == 2) {
         if (b.isApproved == 1) {
-            printf("Framework Target Name: %s\n", b.bankName);
+            printf("Bank: %s\n", b.bankName);
             availableBanks++;
         }
     }
+
     fclose(bf);
 
     if (availableBanks == 0) {
-        printf("Error: No approved commercial banks exist to handle registration.\n");
+        printf("No approved banks are available.\n");
         return;
     }
 
     struct UserAccount u = {0};
-    printf("\nEnter Target Commercial Bank Platform Name: ");
+
+    printf("\nEnter Bank Name: ");
     scanf("%49s", u.linkedBankName);
     clearBuffer();
 
     bf = fopen(BANKS_TXT, "r");
-    int valid = 0;
-    while (fscanf(bf, "%*d %s %d %*f %*d %*d\n", b.bankName, &b.isApproved) == 2) {
-        if (b.isApproved == 1 && strcmp(b.bankName, u.linkedBankName) == 0) { valid = 1; break; }
+
+    if (!bf) {
+        printf("Error: Cannot verify bank.\n");
+        return;
     }
+
+    int valid = 0;
+
+    while (fscanf(bf, "%*d %49s %d %*f %*d %*d",
+                  b.bankName, &b.isApproved) == 2) {
+        if (b.isApproved == 1 &&
+            strcmp(b.bankName, u.linkedBankName) == 0) {
+            valid = 1;
+            break;
+        }
+    }
+
     fclose(bf);
 
-    if (!valid) { printf("Verification Failure: Unapproved/Invalid institution selection.\n"); return; }
-
-    printf("Assign Desired Unique Account Number String (Up to 10 Digits): ");
-    scanf("%49s", u.accountNumber);
-    clearBuffer();
-
-    FILE *uf = fopen(USERS_TXT, "r");
-    struct UserAccount temp;
-    if (uf) {
-        while (fscanf(uf, "%s %*d %*s %*s %*f %*f %*d %*f %*f %*d %*s %*d\n", temp.accountNumber) == 1) {
-            if (strcmp(temp.accountNumber, u.accountNumber) == 0) {
-                printf("Registration Aborted: Account key collision detected on plain text table.\n");
-                fclose(uf); return;
-            }
-        }
-        fclose(uf);
+    if (!valid) {
+        printf("Invalid or unapproved bank.\n");
+        return;
     }
 
-    printf("Configure Security Access Key (5-Digit Numeric PIN): ");
+
+    generateAccountNumber(u.accountNumber);
+
+    printf("\nBank-generated Account Number: %s\n",
+           u.accountNumber);
+
+    printf("Create a 5-digit PIN: ");
     scanf("%d", &u.pin);
-    printf("Enter Legal Full Name of Holder (No spaces): ");
+    clearBuffer();
+
+    if (u.pin < 10000 || u.pin > 99999) {
+        printf("Invalid PIN. Use exactly 5 digits.\n");
+        return;
+    }
+
+    printf("Enter Full Name (no spaces): ");
     scanf("%49s", u.userName);
     clearBuffer();
 
-    u.balance = 0.0; u.activeLoan = 0.0; u.loanDueDays = 0;
-    u.bondInvestment = 0.0; u.totalProfitsEarned = 0.0;
-    u.hasCard = 0; strcpy(u.cardNumber, "None"); u.cardPin = 0;
 
-    uf = fopen(USERS_TXT, "a");
-    if (uf) {
-        fprintf(uf, "%s %d %s %s %.2f %.2f %d %.2f %.2f %d %s %d\n", 
-                u.accountNumber, u.pin, u.linkedBankName, u.userName, u.balance, 
-                u.activeLoan, u.loanDueDays, u.bondInvestment, u.totalProfitsEarned, 
-                u.hasCard, u.cardNumber, u.cardPin);
-        fclose(uf);
-        printf("User account securely mapped to ledger text array logs.\n");
+    u.balance = 0.0;
+    u.activeLoan = 0.0;
+    u.loanDueDays = 0;
+    u.bondInvestment = 0.0;
+    u.totalProfitsEarned = 0.0;
+    u.hasCard = 0;
+    strcpy(u.cardNumber, "None");
+    u.cardPin = 0;
+
+    FILE *uf = fopen(USERS_TXT, "a");
+
+    if (!uf) {
+        printf("Error: Could not save the new account.\n");
+        return;
     }
+
+    fprintf(uf,
+        "%s %d %s %s %.2f %.2f %d %.2f %.2f %d %s %d\n",
+        u.accountNumber,
+        u.pin,
+        u.linkedBankName,
+        u.userName,
+        u.balance,
+        u.activeLoan,
+        u.loanDueDays,
+        u.bondInvestment,
+        u.totalProfitsEarned,
+        u.hasCard,
+        u.cardNumber,
+        u.cardPin
+    );
+
+    fclose(uf);
+
+    printf("\n");
+    printf("     ACCOUNT OPENED SUCCESSFULLY   \n");
+    printf("\n");
+    printf("Account Holder : %s\n", u.userName);
+    printf("Bank Name      : %s\n", u.linkedBankName);
+    printf("Account Number : %s\n", u.accountNumber);
+    printf("Initial Balance: $%.2f\n", u.balance);
+    printf("Please save your account number.\n");
+    printf("\n");
 }
 
 void userAuthenticationLogin(void) {
     char inputAcc[MAX_STR];
     int inputPin;
-    printf("\n--- CLIENT SECURE TEXT AUTHENTICATION HANDSHAKE PORTAL ---\n");
+    printf("\n   CLIENT SECURE TEXT AUTHENTICATION HANDSHAKE PORTAL   \n");
     printf("Account Reference ID String: ");
     scanf("%49s", inputAcc);
     printf("Security Password (5-Digit PIN): ");
@@ -113,9 +210,9 @@ void userAuthenticationLogin(void) {
 
     struct UserAccount u;
     int authenticated = 0;
-    while (fscanf(f, "%s %d %s %s %lf %lf %d %lf %lf %d %s %d\n", 
-           u.accountNumber, &u.pin, u.linkedBankName, u.userName, &u.balance, 
-           &u.activeLoan, &u.loanDueDays, &u.bondInvestment, &u.totalProfitsEarned, 
+    while (fscanf(f, "%s %d %s %s %lf %lf %d %lf %lf %d %s %d\n",
+           u.accountNumber, &u.pin, u.linkedBankName, u.userName, &u.balance,
+           &u.activeLoan, &u.loanDueDays, &u.bondInvestment, &u.totalProfitsEarned,
            &u.hasCard, u.cardNumber, &u.cardPin) == 12) {
         if (strcmp(u.accountNumber, inputAcc) == 0 && u.pin == inputPin) {
             authenticated = 1; break;
@@ -137,22 +234,22 @@ void customerDashboard(struct UserAccount *activeUser) {
         FILE *f = fopen(USERS_TXT, "r");
         if (f) {
             struct UserAccount t;
-            while (fscanf(f, "%s %d %s %s %lf %lf %d %lf %lf %d %s %d\n", 
-                   t.accountNumber, &t.pin, t.linkedBankName, t.userName, &t.balance, 
-                   &t.activeLoan, &t.loanDueDays, &t.bondInvestment, &t.totalProfitsEarned, 
+            while (fscanf(f, "%s %d %s %s %lf %lf %d %lf %lf %d %s %d\n",
+                   t.accountNumber, &t.pin, t.linkedBankName, t.userName, &t.balance,
+                   &t.activeLoan, &t.loanDueDays, &t.bondInvestment, &t.totalProfitsEarned,
                    &t.hasCard, t.cardNumber, &t.cardPin) == 12) {
                 if (strcmp(t.accountNumber, activeUser->accountNumber) == 0) { *activeUser = t; break; }
             }
             fclose(f);
         }
 
-        printf("\n=============================================================\n");
-        printf("USER ACCOUNT CENTRAL TERMINAL CORE INTERFACE\n");
-        printf("=============================================================\n");
+        printf("\n\n");
+        printf("  USER ACCOUNT CENTRAL TERMINAL CORE INTERFACE  \n");
+        printf("\n");
         printf("Holder: %-15s | Node Institution: %s\n", activeUser->userName, activeUser->linkedBankName);
         printf("Liquid Bal: $%-11.2f | Outstanding Loans: $%-10.2f\n", activeUser->balance, activeUser->activeLoan);
         printf("Locked Bonds: $%-9.2f | Profit Accumulator: $%-8.2f\n", activeUser->bondInvestment, activeUser->totalProfitsEarned);
-        printf("-------------------------------------------------------------\n");
+        printf("\n");
         printf("1. Deposit Cash Liquidity\n");
         printf("2. Execute Conditional Cash Withdrawal\n");
         printf("3. Open Debt/Loan Management System (Risk Modules & Penalties)\n");
@@ -160,7 +257,7 @@ void customerDashboard(struct UserAccount *activeUser) {
         printf("5. Direct Cross-Node Clearing House Bank Transfer Routing\n");
         printf("6. Open Dedicated ATM Token Card Lifecycle Management Panel\n");
         printf("7. Terminate Authentication Session (Log Out)\n");
-        printf("-------------------------------------------------------------\n");
+        printf("\n");
         printf("Enter System Call Selection: ");
         scanf("%d", &choice);
         clearBuffer();
@@ -185,9 +282,9 @@ int saveUserToTextFile(struct UserAccount *user) {
     struct UserAccount list[500];
     int count = 0, found = -1;
 
-    while (fscanf(f, "%s %d %s %s %lf %lf %d %lf %lf %d %s %d\n", 
-           list[count].accountNumber, &list[count].pin, list[count].linkedBankName, list[count].userName, &list[count].balance, 
-           &list[count].activeLoan, &list[count].loanDueDays, &list[count].bondInvestment, &list[count].totalProfitsEarned, 
+    while (fscanf(f, "%s %d %s %s %lf %lf %d %lf %lf %d %s %d\n",
+           list[count].accountNumber, &list[count].pin, list[count].linkedBankName, list[count].userName, &list[count].balance,
+           &list[count].activeLoan, &list[count].loanDueDays, &list[count].bondInvestment, &list[count].totalProfitsEarned,
            &list[count].hasCard, list[count].cardNumber, &list[count].cardPin) == 12) {
         if (strcmp(list[count].accountNumber, user->accountNumber) == 0) {
             found = count;
@@ -200,9 +297,9 @@ int saveUserToTextFile(struct UserAccount *user) {
         list[found] = *user;
         f = fopen(USERS_TXT, "w");
         for (int i = 0; i < count; i++) {
-            fprintf(f, "%s %d %s %s %.2f %.2f %d %.2f %.2f %d %s %d\n", 
-                    list[i].accountNumber, list[i].pin, list[i].linkedBankName, list[i].userName, list[i].balance, 
-                    list[i].activeLoan, list[i].loanDueDays, list[i].bondInvestment, list[i].totalProfitsEarned, 
+            fprintf(f, "%s %d %s %s %.2f %.2f %d %.2f %.2f %d %s %d\n",
+                    list[i].accountNumber, list[i].pin, list[i].linkedBankName, list[i].userName, list[i].balance,
+                    list[i].activeLoan, list[i].loanDueDays, list[i].bondInvestment, list[i].totalProfitsEarned,
                     list[i].hasCard, list[i].cardNumber, list[i].cardPin);
         }
         fclose(f); return 1;
